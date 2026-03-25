@@ -94,7 +94,7 @@ settings disabled by setting level > 1.
 __NOTE:__ if switching to a level > 1 please reset non-volatile storage with `$RST=*` after reflashing!
 */
 #if !defined COMPATIBILITY_LEVEL || defined __DOXYGEN__
-#define COMPATIBILITY_LEVEL 0
+#define COMPATIBILITY_LEVEL 2
 #endif
 
 /*! \def ENABLE_SPINDLE_LINEARIZATION
@@ -734,7 +734,7 @@ Enabling this setting enables status reporting while homing.
 \internal Bit 12 in settings.status_report.
 */
 #if !defined DEFAULT_REPORT_WHEN_HOMING || defined __DOXYGEN__
-#define DEFAULT_REPORT_WHEN_HOMING Off // Default off. Set to \ref On or 1 to enable.
+#define DEFAULT_REPORT_WHEN_HOMING On // Default off. Set to \ref On or 1 to enable.
 #endif
 
 /*! \def DEFAULT_REPORT_DISTANCE_TO_GO

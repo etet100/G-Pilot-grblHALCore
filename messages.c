@@ -21,6 +21,7 @@
 */
 
 #include "grbl.h"
+// #include <cstddef>
 #include "messages.h"
 
 PROGMEM static const message_t messages[] = {
@@ -53,12 +54,12 @@ PROGMEM static const message_t messages[] = {
 const message_t *message_get (message_code_t id)
 {
     uint_fast16_t idx = 0;
-    const message_t *msg = NULL;
+    const message_t *msg = 0;
 
     do {
         if(messages[idx].id == id)
             msg = &messages[idx];
-    } while(msg == NULL && ++idx < Message_NextMessage);
+    } while(msg == 0 && ++idx < Message_NextMessage);
 
     return msg;
 }

@@ -260,6 +260,8 @@ FLASHMEM static bool limits_pull_off (axes_signals_t axis, coord_data_t *distanc
     return true; // Note: failure is returned above if move fails.
 }
 
+homing_mode_t homing_mode = HomingMode_Seek;
+
 // Homes the specified cycle axes, sets the machine position, and performs a pull-off motion after
 // completing. Homing is a special motion case, which involves rapid uncontrolled stops to locate
 // the trigger point of the limit switches. The rapid stops are handled by a system level axis lock
@@ -276,7 +278,7 @@ FLASHMEM static bool homing_cycle (axes_signals_t cycle, axes_signals_t auto_squ
     uint_fast8_t step_pin[N_AXIS], n_active_axis, dual_motor_axis = 0;
     bool autosquare_check = false;
     float max_travel = 0.0f, homing_rate;
-    homing_mode_t mode = HomingMode_Seek;
+    homing_mode = HomingMode_Seek;
     axes_signals_t axislock, homing_state;
     home_signals_t signals_state;
     squaring_mode_t squaring_mode = SquaringMode_Both;
@@ -355,9 +357,9 @@ FLASHMEM static bool homing_cycle (axes_signals_t cycle, axes_signals_t auto_squ
 #endif
                 // Set target direction based on cycle mask and homing cycle approach state.
                 if (bit_istrue(settings.homing.dir_mask.value, bit(idx)))
-                    target.values[idx] = mode == HomingMode_Pulloff ? distance.values[idx] : - distance.values[idx];
+                    target.values[idx] = homing_mode == HomingMode_Pulloff ? distance.values[idx] : - distance.values[idx];
                 else
-                    target.values[idx] = mode == HomingMode_Pulloff ? - distance.values[idx] : distance.values[idx];
+                    target.values[idx] = homing_mode == HomingMode_Pulloff ? - distance.values[idx] : distance.values[idx];
 
                 // Apply axislock to the step port pins active in this cycle.
                 axislock.mask |= step_pin[idx];
@@ -370,7 +372,7 @@ FLASHMEM static bool homing_cycle (axes_signals_t cycle, axes_signals_t auto_squ
 #endif
 
         if(grbl.on_homing_rate_set)
-            grbl.on_homing_rate_set(cycle, homing_rate, mode);
+            grbl.on_homing_rate_set(cycle, homing_rate, homing_mode);
 
         homing_rate *= sqrtf(n_active_axis); // [sqrt(N_AXIS)] Adjust so individual axes all move at homing rate.
 
@@ -392,7 +394,7 @@ FLASHMEM static bool homing_cycle (axes_signals_t cycle, axes_signals_t auto_squ
 
         do {
 
-            if (mode != HomingMode_Pulloff) {
+            if (homing_mode != HomingMode_Pulloff) {
 
                 // Check homing switches state. Lock out cycle axes when they change.
                 homing_state = homing_signals_select(signals_state = hal.homing.get_state(), auto_square, squaring_mode);
@@ -452,11 +454,11 @@ FLASHMEM static bool homing_cycle (axes_signals_t cycle, axes_signals_t auto_squ
                     hal.delay_ms(2, NULL);
 
                     // Homing failure condition: Homing switch(es) still engaged after pull-off motion
-                    if (mode == HomingMode_Pulloff && (homing_signals_select(hal.homing.get_state(), (axes_signals_t){0}, SquaringMode_Both).mask & cycle.mask))
+                    if (homing_mode == HomingMode_Pulloff && (homing_signals_select(hal.homing.get_state(), (axes_signals_t){0}, SquaringMode_Both).mask & cycle.mask))
                         system_set_exec_alarm(Alarm_FailPulloff);
 
                     // Homing failure condition: Limit switch not found during approach.
-                    if (mode != HomingMode_Pulloff && (rt_exec & EXEC_CYCLE_COMPLETE))
+                    if (homing_mode != HomingMode_Pulloff && (rt_exec & EXEC_CYCLE_COMPLETE))
                         system_set_exec_alarm(Alarm_HomingFailApproach);
 
                     if (sys.rt_exec_alarm) {
@@ -479,8 +481,8 @@ FLASHMEM static bool homing_cycle (axes_signals_t cycle, axes_signals_t auto_squ
         hal.delay_ms(settings.homing.debounce_delay, NULL); // Delay to allow transient dynamics to dissipate.
 
         // Reverse direction and reset homing rate for cycle(s).
-        mode = mode == HomingMode_Pulloff ? HomingMode_Locate : HomingMode_Pulloff;
-        homing_rate = hal.homing.get_feedrate(cycle, mode);
+        homing_mode = homing_mode == HomingMode_Pulloff ? HomingMode_Locate : HomingMode_Pulloff;
+        homing_rate = hal.homing.get_feedrate(cycle, homing_mode);
 
         // After first cycle, homing enters locating phase. Shorten search to pull-off distance.
         idx = N_AXIS;
@@ -489,7 +491,7 @@ FLASHMEM static bool homing_cycle (axes_signals_t cycle, axes_signals_t auto_squ
             //if(mode == SquaringMode_Both && auto_square.mask)
             //    cycle.mask &= ~auto_square.mask;
             if(bit_istrue(cycle.mask, bit(--idx)))
-                distance.values[idx] = homing_pulloff.values[idx] * (mode == HomingMode_Locate ? HOMING_AXIS_LOCATE_SCALAR : 1.0f);
+                distance.values[idx] = homing_pulloff.values[idx] * (homing_mode == HomingMode_Locate ? HOMING_AXIS_LOCATE_SCALAR : 1.0f);
         } while(idx);
 
         if(auto_square.mask) {
